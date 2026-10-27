@@ -2,6 +2,7 @@
   'use strict';
   const merchants = window.CAMPUS_MERCHANTS;
   const menuFraming = window.CAMPUS_MENU_FRAMING || {};
+  const campusMap = window.CAMPUS_MAP;
   const app = document.querySelector('#app');
   if (!Array.isArray(merchants) || merchants.length === 0) {
     app.innerHTML = '<p class="pending-note">互动查询暂未加载，请刷新重试。下方仍可展开查看商家资料。</p>';
@@ -27,6 +28,11 @@
   let photoBaseWidth = 0;
   let toastTimer;
   let searchTimer;
+  let mapArea = 'hongqiao';
+  let mapZoom = 1;
+  let lastMapReturnHash = '#/';
+  let mapFromPage = false;
+  let mapDetailFromList = false;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
   const normalize = value => String(value).normalize('NFKC').toLowerCase().replace(/[\s·・.，,、\/（）()\-]/g, '');
@@ -73,8 +79,53 @@
     return merchants.filter(m => (filters.area === 'all' || m.area === filters.area) && (filters.floor === 'all' || m.floor === filters.floor) && (filters.category === 'all' || m.category === filters.category) && (!query || index.get(m.id).includes(query)));
   }
 
-  function renderNav() {
-    document.querySelector('#area-nav').innerHTML = areas.map(a => `<button class="area-button" data-area="${a.id}" aria-current="${filters.area === a.id}">${icon(a.icon)}<span>${a.name}</span><span class="area-count">${count(a.id)}</span></button>`).join('');
+  function renderNav(mapActive = false) {
+    document.querySelector('#area-nav').innerHTML = areas.map(a => `<button class="area-button" data-area="${a.id}" aria-current="${!mapActive && filters.area === a.id}">${icon(a.icon)}<span>${a.name}</span><span class="area-count">${count(a.id)}</span></button>`).join('') + `<button class="area-button map-nav-button" data-action="map" aria-current="${mapActive}">${icon('pin')}<span>校园地图</span></button>`;
+  }
+
+  function renderMap(area = 'hongqiao', zoom = 1, keepScroll = false) {
+    currentMerchant = null;
+    previousView = 'map';
+    document.title = '校园餐饮地图 · 欧亚食光';
+    renderNav(true);
+    if (!campusMap) {
+      app.innerHTML = '<div class="empty-state"><h1>校园地图暂未加载</h1><p>请刷新重试，或返回商家列表查看文字位置。</p><a class="primary-button" href="#/">返回商家列表</a></div>';
+      return;
+    }
+    mapArea = campusMap.points.some(p => p.id === area) ? area : 'hongqiao';
+    mapZoom = zoom;
+    const selected = campusMap.points.find(p => p.id === mapArea);
+    const pageScroll = keepScroll ? window.scrollY : 0;
+    app.innerHTML = `<div class="detail-tools"><button class="text-button back-button" data-action="map-back">${icon('back')}${lastMapReturnHash.startsWith('#/merchant/') ? '返回商家详情' : '返回商家列表'}</button><a class="text-button" href="${esc(campusMap.asset)}" target="_blank" rel="noopener">查看完整原图 ${icon('photo')}</a></div>
+      <div class="page-heading"><div><h1>校园餐饮地图</h1><p>彩色线路为报到路线，餐厅已另作标记。</p></div></div>
+      <div class="map-toolbar"><div class="map-area-switch" aria-label="在地图中选择餐厅">${campusMap.points.map(p => `<button data-map-select="${p.id}" aria-pressed="${p.id === mapArea}">${esc(p.name)}</button>`).join('')}</div><div class="map-zoom-controls" aria-label="地图缩放"><button class="icon-button" data-map-zoom="out" aria-label="缩小地图">${icon('minus')}</button><span id="map-zoom-status" aria-live="polite"></span><button class="icon-button" data-map-zoom="in" aria-label="放大地图">${icon('plus')}</button><button class="text-button" data-map-zoom="fit">全图</button></div></div>
+      <div class="campus-map-stage" id="campus-map-stage" tabindex="0" role="region" aria-label="校园地图，可放大并滚动查看"><div class="campus-map-board" id="campus-map-board" style="aspect-ratio:${campusMap.width}/${campusMap.height}"><img src="${esc(campusMap.asset)}" alt="学校2026级新生报到地图" width="${campusMap.width}" height="${campusMap.height}">
+      ${campusMap.points.map((p, i) => `<div class="map-building ${p.id === mapArea ? 'selected' : ''}" aria-hidden="true" style="left:${(p.bounds.x - 4) / campusMap.width * 100}%;top:${(p.bounds.y - 4) / campusMap.height * 100}%;width:${(p.bounds.width + 8) / campusMap.width * 100}%;height:${(p.bounds.height + 8) / campusMap.height * 100}%"></div><button class="map-pin ${p.id === mapArea ? 'selected' : ''}" style="left:${p.center.x / campusMap.width * 100}%;top:${p.center.y / campusMap.height * 100}%" data-map-select="${p.id}" aria-label="定位${esc(p.name)}" aria-pressed="${p.id === mapArea}"><span class="map-pin-dot">${i + 1}</span><span class="map-pin-label">${esc(p.name)}</span></button>`).join('')}</div></div>
+      <div class="map-location-card"><div><h2>${esc(selected.name)}</h2><p>${esc(selected.locationNote)}</p><span>${esc(areas.find(a => a.id === mapArea).location)} · ${count(mapArea)}家商家</span></div><a class="outline-button" href="#/?area=${mapArea}">查看这里的商家 ${icon('arrow')}</a></div>
+      <p class="pending-note">${icon('info')}<span>底图：${esc(campusMap.title)}。彩色线路为新生报到路线；餐厅标记用于校园方位参考。</span></p>`;
+    updateMapViewport(zoom > 1);
+    window.scrollTo(0, pageScroll);
+  }
+
+  function updateMapViewport(centerOnSelected = false) {
+    const stage = document.querySelector('#campus-map-stage');
+    const board = document.querySelector('#campus-map-board');
+    if (!stage || !board || !campusMap) return;
+    const fitWidth = Math.min(stage.clientWidth - 24, (stage.clientHeight - 24) * campusMap.width / campusMap.height);
+    const width = fitWidth * mapZoom;
+    board.style.width = `${width}px`;
+    stage.classList.toggle('map-is-zoomed', mapZoom > 1);
+    document.querySelector('#map-zoom-status').textContent = `${mapZoom}×`;
+    document.querySelector('[data-map-zoom="out"]').disabled = mapZoom === 1;
+    document.querySelector('[data-map-zoom="in"]').disabled = mapZoom === 3;
+    if (centerOnSelected && mapZoom > 1) {
+      const selected = campusMap.points.find(p => p.id === mapArea);
+      stage.scrollLeft = 12 + selected.center.x / campusMap.width * width - stage.clientWidth / 2;
+      stage.scrollTop = 12 + selected.center.y / campusMap.width * width - stage.clientHeight / 2;
+    } else {
+      stage.scrollLeft = 0;
+      stage.scrollTop = 0;
+    }
   }
 
   function card(m) {
@@ -147,8 +198,8 @@
       <div class="detail-top ${m.photoLayout === 'combined' ? 'detail-top-combined' : ''}">${image(m, 'detail-cover', true)}<div class="detail-top-info"><h1>${esc(m.name)}</h1><div class="detail-tags"><span>${esc(m.areaName)}</span><span>${floorNames[m.floor]}</span><span class="category">${esc(m.category)}</span></div>${m.aliases?.length ? `<p class="detail-alias">招牌店名：${esc(m.aliases.join('、'))}</p>` : ''}<p class="detail-specialty">${m.specialties.length ? '主营：' + esc(m.specialties.join('、')) : '主营信息待补充'}</p></div></div>
       <div class="detail-columns"><div><section class="detail-section"><div class="section-header"><h2>菜品与价格</h2><span>${m.dishes.length ? '已录入部分菜单' : '菜价待补充'}</span></div><table class="menu-table"><thead><tr><th scope="col">菜品 / 规格</th><th scope="col" class="price-col">价格</th></tr></thead><tbody>${dishes.map(d => `<tr><td>${esc(d.name)}</td><td class="price-col ${typeof d.price === 'number' ? '' : 'pending-value'}">${typeof d.price === 'number' ? `¥${money(d.price)}<span class="price-unit"> / ${esc(d.unit || '份')}</span>` : '待补充'}</td></tr>`).join('')}</tbody></table><p class="menu-caption">${m.dishes.length ? '价格及规格按已有菜单实拍整理，仅代表已录入菜品，不作为人均消费。完整供应与最新价格以门店为准。' : '先展示已有主营信息，具体菜品、规格与价格将在取得依据后补充。'}</p></section>
       <section class="detail-section"><div class="section-header"><h2>菜单实拍</h2><span>${m.menuImages.length ? '点击查看大图' : '照片待补充'}</span></div>${m.menuImages.length ? `<div class="menu-gallery" data-count="${m.menuImages.length}">${m.menuImages.map((src, i) => `<button class="menu-thumb" data-photo="${i}" aria-label="放大${esc(m.name)}菜单照片${i + 1}"><div class="menu-preview">${menuImage(src, `${m.name}菜单实拍${i + 1}`)}</div><span>${esc(menuFraming[src]?.label || `菜单 ${i + 1}`)}${icon('photo')}</span></button>`).join('')}</div>` : '<p class="menu-missing">菜单照片待补充。现有商家文字资料可正常查看。</p>'}</section></div>
-      <aside class="info-panel" aria-label="商家位置与营业时间"><h2>到店信息</h2><div class="info-block location-block"><div class="info-label">${icon('pin')}商家位置</div><div class="info-value"><span class="floor-chip">${floorNames[m.floor]}</span>${esc(m.areaName)}</div><p class="info-sub">${esc(areas.find(a => a.id === m.area).location)}</p><p class="info-value" style="margin-top:10px">${esc(m.location)}</p>${dataNotes.filter(n => /位置|第二|核实/.test(n)).map(n => `<p class="location-note">${esc(n)}</p>`).join('')}<div class="floor-guide">${(m.area === 'hongqiao' ? ['B1', '1F', '2F'] : ['1F', '2F']).map(f => `<span class="${f === m.floor ? 'current' : ''}">${floorNames[f]}</span>`).join('')}</div></div><div class="info-block"><div class="info-label">${icon('clock')}营业时间</div><p class="info-value">${m.hours ? esc(m.hours) : '待补充'}</p><p class="info-sub">${m.hours ? '营业安排以门店为准' : '暂无可靠时间信息'}</p></div><div class="info-block"><div class="info-label">${icon('shop')}餐饮品类</div><p class="info-value">${esc(m.category)}</p></div></aside></div>
-      ${dataNotes.filter(n => !/位置|第二|核实/.test(n)).map(n => `<p class="pending-note">${icon('info')}<span>${esc(n)}</span></p>`).join('')}<p class="detail-bottom">资料整理于2026年10月27日。未确认的信息保留“待补充”，实际菜品、价格与营业安排以门店为准。</p>`;
+      <aside class="info-panel" aria-label="商家位置与营业时间"><h2>到店信息</h2><div class="info-block location-block"><div class="info-label">${icon('pin')}商家位置</div><div class="info-value"><span class="floor-chip">${floorNames[m.floor]}</span>${esc(m.areaName)}</div><p class="info-sub">${esc(areas.find(a => a.id === m.area).location)}</p><p class="info-value" style="margin-top:10px">${esc(m.location)}</p>${dataNotes.filter(n => /位置|第二|核实/.test(n)).map(n => `<p class="location-note">${esc(n)}</p>`).join('')}<div class="floor-guide">${(m.area === 'hongqiao' ? ['B1', '1F', '2F'] : ['1F', '2F']).map(f => `<span class="${f === m.floor ? 'current' : ''}">${floorNames[f]}</span>`).join('')}</div><button class="map-location-link" data-action="map" data-map-area="${m.area}">${icon('pin')}在校园地图中查看</button></div><div class="info-block"><div class="info-label">${icon('clock')}营业时间</div><p class="info-value">${m.hours ? esc(m.hours) : '待补充'}</p><p class="info-sub">${m.hours ? '营业安排以门店为准' : '暂无可靠时间信息'}</p></div><div class="info-block"><div class="info-label">${icon('shop')}餐饮品类</div><p class="info-value">${esc(m.category)}</p></div></aside></div>
+      ${dataNotes.filter(n => !/位置|第二|核实/.test(n)).map(n => `<p class="pending-note">${icon('info')}<span>${esc(n)}</span></p>`).join('')}<p class="detail-bottom">资料整理于2026年10月28日。未确认的信息保留“待补充”，实际菜品、价格与营业安排以门店为准。</p>`;
     window.scrollTo(0, 0);
   }
 
@@ -164,9 +215,14 @@
     clearTimeout(searchTimer);
     for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
     const hash = location.hash || '#/';
+    if (hash.startsWith('#/map')) {
+      const params = new URLSearchParams(hash.split('?')[1] || '');
+      renderMap(params.get('area') || 'hongqiao');
+      return;
+    }
     const match = hash.match(/^#\/merchant\/([^/?]+)/);
     if (match) {
-      detailFromList = previousView === 'list';
+      detailFromList = previousView === 'map' && hash === lastMapReturnHash ? mapDetailFromList : previousView === 'list';
       previousView = 'detail';
       const m = merchants.find(row => row.id === match[1]);
       if (m) renderDetail(m);
@@ -227,6 +283,22 @@
       main.scrollIntoView();
       return;
     }
+    const mapSelect = event.target.closest('[data-map-select]');
+    if (mapSelect) {
+      const selected = mapSelect.dataset.mapSelect;
+      history.replaceState(null, '', `#/map?area=${selected}`);
+      renderMap(selected, Math.max(2, mapZoom), true);
+      document.querySelector('#campus-map-stage').focus({ preventScroll: true });
+      return;
+    }
+    const mapZoomAction = event.target.closest('[data-map-zoom]');
+    if (mapZoomAction) {
+      const action = mapZoomAction.dataset.mapZoom;
+      mapZoom = action === 'fit' ? 1 : Math.max(1, Math.min(3, mapZoom + (action === 'in' ? 1 : -1)));
+      updateMapViewport(mapZoom > 1);
+      document.querySelector('#campus-map-stage').focus({ preventScroll: true });
+      return;
+    }
     const area = event.target.closest('[data-area]');
     if (area) {
       if (currentMerchant) filters = readFilters(lastListHash);
@@ -245,6 +317,15 @@
     const photo = event.target.closest('[data-photo]');
     if (photo) showPhoto(Number(photo.dataset.photo));
     const action = event.target.closest('[data-action]')?.dataset.action;
+    if (action === 'map') {
+      if (!location.hash.startsWith('#/map')) { lastMapReturnHash = location.hash || '#/'; mapFromPage = true; mapDetailFromList = detailFromList; }
+      const selected = event.target.closest('[data-map-area]')?.dataset.mapArea || (previousView === 'map' ? mapArea : filters.area !== 'all' ? filters.area : 'hongqiao');
+      location.hash = `#/map?area=${selected}`;
+    }
+    if (action === 'map-back') {
+      if (mapFromPage) history.back();
+      else location.hash = lastMapReturnHash;
+    }
     if (action === 'reset') { filters = defaultFilters(); setListHash(); }
     if (action === 'back') {
       if (detailFromList) history.back();
@@ -304,5 +385,6 @@
     }
   });
   window.addEventListener('hashchange', route);
+  window.addEventListener('resize', () => { if (previousView === 'map') updateMapViewport(mapZoom > 1); });
   route();
 })();

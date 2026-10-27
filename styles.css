@@ -77,6 +77,34 @@ dialog{border:1px solid var(--border);padding:0;color:var(--text);border-radius:
 .detail-top-combined{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px}
 .detail-top-combined .detail-cover{width:100%;height:164px;min-width:0;--store-photo-height:164px}
 .detail-alias{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
+.mobile-header-actions{display:flex;align-items:center;gap:4px}
+.map-nav-button{margin-top:18px}
+.map-location-link{display:flex;align-items:center;gap:6px;min-height:44px;margin-top:12px;padding:8px 0;font-size:12px;color:var(--accent);text-align:left}
+.map-location-link .icon{width:16px;height:16px}
+.map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:24px 0 16px}
+.map-area-switch{display:flex;gap:4px;padding:4px;background:var(--ground);border:1px solid var(--border);border-radius:8px}
+.map-area-switch button{min-height:42px;border:1px solid transparent;border-radius:5px;padding:8px 14px;white-space:nowrap;font-size:13px;color:var(--muted)}
+.map-area-switch button[aria-pressed=true]{color:var(--accent);background:#fff;border-color:var(--border);font-weight:600}
+.map-zoom-controls{display:flex;align-items:center;gap:6px}
+.map-zoom-controls .icon-button{border:1px solid var(--border);font-size:21px;font-weight:400;width:40px;height:40px}
+.map-zoom-controls>span{min-width:30px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.campus-map-stage{height:clamp(360px,62vh,590px);width:100%;padding:12px;display:flex;align-items:center;justify-content:center;overflow:auto;overscroll-behavior:contain;background:#edf1ec;border:1px solid var(--border);border-radius:8px}
+.campus-map-stage.map-is-zoomed{display:block}
+.campus-map-board{position:relative;flex-shrink:0;background:#fff}
+.campus-map-board>img{display:block;width:100%;height:100%;max-width:none}
+.map-building{position:absolute;border:1px solid var(--accent);background:rgba(33,102,68,.08);border-radius:3px;pointer-events:none}
+.map-building.selected{border:2px solid var(--accent);background:rgba(33,102,68,.2)}
+.map-pin{position:absolute;transform:translate(-50%,-50%);width:44px;height:44px;padding:0;z-index:2}
+.map-pin.selected{z-index:3}
+.map-pin-dot{display:flex;align-items:center;justify-content:center;width:24px;height:24px;margin:auto;border:3px solid #fff;border-radius:50%;background:var(--muted);color:#fff;font-size:11px;font-weight:600}
+.map-pin-label{position:absolute;left:50%;bottom:42px;transform:translateX(-50%);padding:7px 9px;border-radius:5px;border:1px solid var(--control);background:#fff;color:var(--text);white-space:nowrap;font-size:12px;font-weight:500}
+.map-pin.selected .map-pin-dot{background:var(--accent)}
+.map-pin.selected .map-pin-label{background:var(--accent);border-color:var(--accent);color:#fff}
+.map-location-card{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:18px;padding:18px 20px;border:1px solid var(--border);border-radius:8px}
+.map-location-card h2{font-size:17px}
+.map-location-card p{font-size:13px;line-height:1.8;margin-top:7px}
+.map-location-card>div>span{display:block;font-size:12px;color:var(--muted);margin-top:5px;line-height:1.7}
+.map-location-card .outline-button{flex-shrink:0}
 .photo-toolbar-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
 .photo-toolbar-actions .text-button{min-width:62px;justify-content:center;font-size:12px;color:var(--accent)}
 .photo-stage.is-zoomed{display:block;overscroll-behavior:contain}
@@ -87,4 +115,14 @@ dialog{border:1px solid var(--border);padding:0;color:var(--text);border-radius:
   .merchant-card-landscape .merchant-copy{padding:13px 14px;min-height:132px}
   .detail-top-combined{display:flex;flex-direction:column;align-items:stretch;gap:16px}
   .detail-top-combined .detail-cover{height:132px;--store-photo-height:132px}
+  .map-toolbar{margin-top:20px;gap:12px}
+  .map-area-switch{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .map-area-switch button{padding:8px 7px;font-size:12px;min-height:44px}
+  .map-zoom-controls{margin-left:auto}
+  .map-zoom-controls .icon-button{width:44px;height:44px}
+  .campus-map-stage{height:340px;padding:12px}
+  .map-location-card{align-items:stretch;flex-direction:column;gap:16px;padding:16px}
+  .map-location-card .outline-button{align-self:flex-start}
+  .map-pin-label{font-size:11px;padding:6px 8px}
+  .map-location-link{font-size:12px}
 }
