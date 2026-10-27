@@ -23,17 +23,21 @@
   let previousView = null;
   let detailFromList = false;
   let photoIndex = 0;
+  let photoZoom = 1;
+  let photoBaseWidth = 0;
   let toastTimer;
   let searchTimer;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
   const normalize = value => String(value).normalize('NFKC').toLowerCase().replace(/[\s·・.，,、\/（）()\-]/g, '');
-  const index = new Map(merchants.map(m => [m.id, normalize([m.name, m.category, m.areaName, m.location, ...m.specialties, ...m.dishes.map(d => d.name)].join(' '))]));
+  const index = new Map(merchants.map(m => [m.id, normalize([m.name, ...(m.aliases || []), m.category, m.areaName, m.location, ...m.specialties, ...m.dishes.map(d => d.name)].join(' '))]));
   const money = value => Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
   const count = area => merchants.filter(m => area === 'all' || m.area === area).length;
   const defaultFilters = () => ({ area: 'all', floor: 'all', category: 'all', q: '' });
   const placeholder = (classes = 'merchant-photo') => `<div class="${classes} photo-placeholder" role="img" aria-label="商家照片待补充">${icon('shop')}<span>照片待补充</span></div>`;
-  const image = (m, classes = 'merchant-photo', eager = false) => m.image ? `<img class="${classes}" src="${esc(m.image)}" alt="${esc(m.name)}门店实拍" loading="${eager ? 'eager' : 'lazy'}" decoding="async" style="object-position:${esc(m.imagePosition || '50% 25%')}" data-merchant-image>` : placeholder(classes);
+  const image = (m, classes = 'merchant-photo', eager = false) => m.image ? (m.photoLayout === 'combined'
+    ? `<div class="${classes} combined-photo">${menuImage(m.image, `${m.name}招牌与窗口实拍`, eager)}</div>`
+    : `<img class="${classes}" src="${esc(m.image)}" alt="${esc(m.name)}门店实拍" loading="${eager ? 'eager' : 'lazy'}" decoding="async" style="object-position:${esc(m.imagePosition || '50% 25%')}" data-merchant-image>`) : placeholder(classes);
   function menuImage(src, alt, eager = false) {
     const framing = menuFraming[src];
     if (!framing) return `<div class="menu-crop menu-crop-unframed"><img src="${esc(src)}" alt="${esc(alt)}" loading="${eager ? 'eager' : 'lazy'}" decoding="async"></div>`;
@@ -76,7 +80,7 @@
   function card(m) {
     const priced = m.dishes.filter(d => typeof d.price === 'number');
     const price = priced.length ? `<span class="merchant-price">已录入菜价 <strong>¥${money(Math.min(...priced.map(d => d.price)))}</strong>起</span>` : '<span>价格待补充</span>';
-    return `<a class="merchant-card" href="#/merchant/${encodeURIComponent(m.id)}" data-card="${esc(m.id)}" aria-label="查看${esc(m.name)}详情">
+    return `<a class="merchant-card ${m.area === 'jinqiao' ? 'merchant-card-landscape' : ''}" href="#/merchant/${encodeURIComponent(m.id)}" data-card="${esc(m.id)}" aria-label="查看${esc(m.name)}详情">
       ${image(m)}<div class="merchant-copy"><div class="merchant-title"><h3>${esc(m.name)}</h3>${icon('arrow').replace('class="icon"', 'class="icon card-chevron"')}</div>
       <div class="merchant-category">${esc(m.category)}</div><p class="merchant-specialty">${esc(m.specialties.length ? m.specialties.join(' · ') : '主营待补充')}</p>
       <p class="merchant-location">${esc(m.location)}</p><div class="merchant-meta">${price}<span>${m.hours ? esc(m.hours) : '时间待补充'}</span></div></div></a>`;
@@ -91,7 +95,7 @@
       return rows.length ? `<section class="area-group" aria-label="${a.name}商家"><div class="group-heading">${icon('pin')}<b>${a.name}</b><span>${a.location.split(' · ')[0]} · ${rows.length}家</span><span class="group-line"></span></div><div class="merchant-grid">${rows.map(card).join('')}</div></section>` : '';
     }).join('');
     return `<div class="results-line"><h2>${title}</h2><div class="results-actions"><button class="reset-button" data-action="reset" ${isFiltered() ? '' : 'hidden'}>重置筛选</button><span class="result-count" role="status" aria-live="polite">共 <b>${matched.length}</b> 家商家</span></div></div>${summary.length ? `<p class="filter-summary">${esc(summary.join(' · '))}</p>` : ''}${matched.length ? groups : `<div class="empty-state">${icon('search')}<h2>没有找到匹配的商家</h2><p>试试更短的关键词，或清空餐厅、楼层与品类筛选。</p><button class="primary-button" data-action="reset">清空筛选，查看全部</button></div>`}
-      <p class="pending-note">${icon('info')}<span>资料持续补充中。金桥照片暂缺；没有依据的价格和营业时间均标注“待补充”。</span></p>`;
+      <p class="pending-note">${icon('info')}<span>资料持续补充中。${merchants.filter(m => m.area === 'jinqiao' && !m.image).length ? `金桥仍有${merchants.filter(m => m.area === 'jinqiao' && !m.image).length}家照片待补充；` : ''}没有依据的价格和营业时间均标注“待补充”。</span></p>`;
   }
 
   function renderList(restore = false) {
@@ -140,9 +144,9 @@
     const dataNotes = m.notes.filter(n => !n.includes('已录入部分清晰菜单'));
     const dishes = m.dishes.length ? m.dishes : m.specialties.length ? m.specialties.map(name => ({ name, price: null, unit: '份' })) : [{ name: '菜品信息待补充', price: null }];
     app.innerHTML = `<div class="detail-tools"><button class="text-button back-button" data-action="back">${icon('back')}返回商家列表</button><button class="text-button" data-action="share">${icon('share')}分享商家</button></div>
-      <div class="detail-top">${image(m, 'detail-cover', true)}<div class="detail-top-info"><h1>${esc(m.name)}</h1><div class="detail-tags"><span>${esc(m.areaName)}</span><span>${floorNames[m.floor]}</span><span class="category">${esc(m.category)}</span></div><p class="detail-specialty">${m.specialties.length ? '主营：' + esc(m.specialties.join('、')) : '主营信息待补充'}</p></div></div>
+      <div class="detail-top ${m.photoLayout === 'combined' ? 'detail-top-combined' : ''}">${image(m, 'detail-cover', true)}<div class="detail-top-info"><h1>${esc(m.name)}</h1><div class="detail-tags"><span>${esc(m.areaName)}</span><span>${floorNames[m.floor]}</span><span class="category">${esc(m.category)}</span></div>${m.aliases?.length ? `<p class="detail-alias">招牌店名：${esc(m.aliases.join('、'))}</p>` : ''}<p class="detail-specialty">${m.specialties.length ? '主营：' + esc(m.specialties.join('、')) : '主营信息待补充'}</p></div></div>
       <div class="detail-columns"><div><section class="detail-section"><div class="section-header"><h2>菜品与价格</h2><span>${m.dishes.length ? '已录入部分菜单' : '菜价待补充'}</span></div><table class="menu-table"><thead><tr><th scope="col">菜品 / 规格</th><th scope="col" class="price-col">价格</th></tr></thead><tbody>${dishes.map(d => `<tr><td>${esc(d.name)}</td><td class="price-col ${typeof d.price === 'number' ? '' : 'pending-value'}">${typeof d.price === 'number' ? `¥${money(d.price)}<span class="price-unit"> / ${esc(d.unit || '份')}</span>` : '待补充'}</td></tr>`).join('')}</tbody></table><p class="menu-caption">${m.dishes.length ? '价格及规格按已有菜单实拍整理，仅代表已录入菜品，不作为人均消费。完整供应与最新价格以门店为准。' : '先展示已有主营信息，具体菜品、规格与价格将在取得依据后补充。'}</p></section>
-      <section class="detail-section"><div class="section-header"><h2>菜单实拍</h2><span>${m.menuImages.length ? '点击查看大图' : '照片待补充'}</span></div>${m.menuImages.length ? `<div class="menu-gallery" data-count="${m.menuImages.length}">${m.menuImages.map((src, i) => `<button class="menu-thumb" data-photo="${i}" aria-label="放大${esc(m.name)}菜单照片${i + 1}"><div class="menu-preview">${menuImage(src, `${m.name}菜单实拍${i + 1}`)}</div><span>菜单 ${i + 1}${icon('photo')}</span></button>`).join('')}</div>` : '<p class="menu-missing">菜单照片待补充。现有商家文字资料可正常查看。</p>'}</section></div>
+      <section class="detail-section"><div class="section-header"><h2>菜单实拍</h2><span>${m.menuImages.length ? '点击查看大图' : '照片待补充'}</span></div>${m.menuImages.length ? `<div class="menu-gallery" data-count="${m.menuImages.length}">${m.menuImages.map((src, i) => `<button class="menu-thumb" data-photo="${i}" aria-label="放大${esc(m.name)}菜单照片${i + 1}"><div class="menu-preview">${menuImage(src, `${m.name}菜单实拍${i + 1}`)}</div><span>${esc(menuFraming[src]?.label || `菜单 ${i + 1}`)}${icon('photo')}</span></button>`).join('')}</div>` : '<p class="menu-missing">菜单照片待补充。现有商家文字资料可正常查看。</p>'}</section></div>
       <aside class="info-panel" aria-label="商家位置与营业时间"><h2>到店信息</h2><div class="info-block location-block"><div class="info-label">${icon('pin')}商家位置</div><div class="info-value"><span class="floor-chip">${floorNames[m.floor]}</span>${esc(m.areaName)}</div><p class="info-sub">${esc(areas.find(a => a.id === m.area).location)}</p><p class="info-value" style="margin-top:10px">${esc(m.location)}</p>${dataNotes.filter(n => /位置|第二|核实/.test(n)).map(n => `<p class="location-note">${esc(n)}</p>`).join('')}<div class="floor-guide">${(m.area === 'hongqiao' ? ['B1', '1F', '2F'] : ['1F', '2F']).map(f => `<span class="${f === m.floor ? 'current' : ''}">${floorNames[f]}</span>`).join('')}</div></div><div class="info-block"><div class="info-label">${icon('clock')}营业时间</div><p class="info-value">${m.hours ? esc(m.hours) : '待补充'}</p><p class="info-sub">${m.hours ? '营业安排以门店为准' : '暂无可靠时间信息'}</p></div><div class="info-block"><div class="info-label">${icon('shop')}餐饮品类</div><p class="info-value">${esc(m.category)}</p></div></aside></div>
       ${dataNotes.filter(n => !/位置|第二|核实/.test(n)).map(n => `<p class="pending-note">${icon('info')}<span>${esc(n)}</span></p>`).join('')}<p class="detail-bottom">资料整理于2026年10月27日。未确认的信息保留“待补充”，实际菜品、价格与营业安排以门店为准。</p>`;
     window.scrollTo(0, 0);
@@ -192,12 +196,27 @@
     photoIndex = i;
     const src = currentMerchant.menuImages[i];
     document.querySelector('#large-photo-frame').innerHTML = menuImage(src, `${currentMerchant.name}菜单实拍，第${i + 1}张`, true);
-    document.querySelector('#photo-caption').textContent = `${currentMerchant.name} · 菜单 ${i + 1} / ${currentMerchant.menuImages.length}`;
-    document.querySelector('#original-photo').href = src;
+    document.querySelector('#photo-caption').textContent = `${currentMerchant.name} · ${menuFraming[src]?.label || '菜单'} ${i + 1} / ${currentMerchant.menuImages.length}`;
+    document.querySelector('#original-photo').href = src.split('#')[0];
     document.querySelector('#prev-photo').disabled = i === 0;
     document.querySelector('#next-photo').disabled = i === currentMerchant.menuImages.length - 1;
     const dialog = document.querySelector('#photo-dialog');
     if (!dialog.open) dialog.showModal();
+    resetPhotoZoom();
+  }
+
+  function resetPhotoZoom() {
+    const stage = document.querySelector('#large-photo-frame');
+    photoZoom = 1;
+    stage.classList.remove('is-zoomed');
+    stage.style.removeProperty('--zoom-width');
+    stage.tabIndex = -1;
+    stage.setAttribute('aria-label', '菜单图片');
+    stage.scrollTop = 0;
+    stage.scrollLeft = 0;
+    photoBaseWidth = stage.querySelector('.menu-crop')?.getBoundingClientRect().width || 0;
+    document.querySelector('#zoom-photo').textContent = '放大 2×';
+    document.querySelector('#zoom-photo').setAttribute('aria-label', '放大菜单至2倍');
   }
 
   document.addEventListener('click', async event => {
@@ -253,6 +272,19 @@
   }, true);
   document.querySelector('#prev-photo').addEventListener('click', () => showPhoto(photoIndex - 1));
   document.querySelector('#next-photo').addEventListener('click', () => showPhoto(photoIndex + 1));
+  document.querySelector('#zoom-photo').addEventListener('click', () => {
+    const stage = document.querySelector('#large-photo-frame');
+    if (photoZoom === 3) { resetPhotoZoom(); return; }
+    if (photoZoom === 1) photoBaseWidth = stage.querySelector('.menu-crop')?.getBoundingClientRect().width || photoBaseWidth;
+    photoZoom += 1;
+    stage.style.setProperty('--zoom-width', `${photoBaseWidth * photoZoom}px`);
+    stage.classList.add('is-zoomed');
+    stage.tabIndex = 0;
+    stage.setAttribute('aria-label', '放大菜单，可横向滚动查看');
+    stage.focus({ preventScroll: true });
+    document.querySelector('#zoom-photo').textContent = photoZoom === 2 ? '放大 3×' : '适应屏幕';
+    document.querySelector('#zoom-photo').setAttribute('aria-label', photoZoom === 2 ? '放大菜单至3倍' : '菜单适应屏幕');
+  });
   for (const dialog of document.querySelectorAll('dialog')) {
     dialog.addEventListener('click', event => {
       if (event.target === dialog) {
@@ -266,9 +298,9 @@
       const search = document.querySelector('#search');
       if (search) { event.preventDefault(); search.focus(); }
     }
-    if (document.querySelector('#photo-dialog').open) {
-      if (event.key === 'ArrowLeft' && photoIndex > 0) showPhoto(photoIndex - 1);
-      if (event.key === 'ArrowRight' && photoIndex < currentMerchant.menuImages.length - 1) showPhoto(photoIndex + 1);
+    if (document.querySelector('#photo-dialog').open && photoZoom === 1) {
+      if (event.key === 'ArrowLeft' && photoIndex > 0) { event.preventDefault(); showPhoto(photoIndex - 1); }
+      if (event.key === 'ArrowRight' && photoIndex < currentMerchant.menuImages.length - 1) { event.preventDefault(); showPhoto(photoIndex + 1); }
     }
   });
   window.addEventListener('hashchange', route);

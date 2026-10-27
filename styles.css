@@ -56,4 +56,35 @@ dialog{border:1px solid var(--border);padding:0;color:var(--text);border-radius:
 }
 @media(max-width:370px){.mobile-areas button{gap:4px;font-size:11px}.mobile-areas button .area-number{font-size:11px}.results-actions{gap:8px}.reset-button,.result-count{font-size:11px}}
 @media(max-width:370px){.merchant-meta,.site-footer{font-size:11px}}
+.select-wrap select{
+  -webkit-appearance:none;
+  appearance:none;
+  padding-left:14px;
+  padding-right:42px;
+  background-image:url('assets/chevron-down.svg');
+  background-repeat:no-repeat;
+  background-size:16px 16px;
+  background-position:right 12px center;
+}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+.combined-photo{display:flex;align-items:center;justify-content:center;overflow:hidden;background:#eef2ed}
+.combined-photo .menu-crop{width:min(100%,calc(var(--store-photo-height,136px) * var(--menu-ratio)));background:transparent}
+.merchant-card-landscape{flex-direction:column;gap:0;padding:0;overflow:hidden}
+.merchant-card-landscape .merchant-photo{width:100%;min-width:0;height:136px;border-radius:0;--store-photo-height:136px}
+.merchant-card-landscape .merchant-copy{padding:14px 16px;min-height:146px;width:100%}
+.merchant-card-landscape .merchant-location{margin-top:8px}
+.merchant-card-landscape .merchant-meta{padding-top:12px}
+.detail-top-combined{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px}
+.detail-top-combined .detail-cover{width:100%;height:164px;min-width:0;--store-photo-height:164px}
+.detail-alias{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
+.photo-toolbar-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.photo-toolbar-actions .text-button{min-width:62px;justify-content:center;font-size:12px;color:var(--accent)}
+.photo-stage.is-zoomed{display:block;overscroll-behavior:contain}
+.photo-stage.is-zoomed .menu-crop{width:var(--zoom-width)!important;max-width:none;margin:0}
+@media(max-width:700px){
+  .merchant-card-landscape{padding:0;gap:0}
+  .merchant-card-landscape .merchant-photo{height:116px;--store-photo-height:116px}
+  .merchant-card-landscape .merchant-copy{padding:13px 14px;min-height:132px}
+  .detail-top-combined{display:flex;flex-direction:column;align-items:stretch;gap:16px}
+  .detail-top-combined .detail-cover{height:132px;--store-photo-height:132px}
+}
