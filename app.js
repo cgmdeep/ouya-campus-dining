@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const merchants = window.CAMPUS_MERCHANTS;
+  const menuFraming = window.CAMPUS_MENU_FRAMING || {};
   const app = document.querySelector('#app');
   if (!Array.isArray(merchants) || merchants.length === 0) {
     app.innerHTML = '<p class="pending-note">互动查询暂未加载，请刷新重试。下方仍可展开查看商家资料。</p>';
@@ -33,6 +34,15 @@
   const defaultFilters = () => ({ area: 'all', floor: 'all', category: 'all', q: '' });
   const placeholder = (classes = 'merchant-photo') => `<div class="${classes} photo-placeholder" role="img" aria-label="商家照片待补充">${icon('shop')}<span>照片待补充</span></div>`;
   const image = (m, classes = 'merchant-photo', eager = false) => m.image ? `<img class="${classes}" src="${esc(m.image)}" alt="${esc(m.name)}门店实拍" loading="${eager ? 'eager' : 'lazy'}" decoding="async" style="object-position:${esc(m.imagePosition || '50% 25%')}" data-merchant-image>` : placeholder(classes);
+  function menuImage(src, alt, eager = false) {
+    const framing = menuFraming[src];
+    if (!framing) return `<div class="menu-crop menu-crop-unframed"><img src="${esc(src)}" alt="${esc(alt)}" loading="${eager ? 'eager' : 'lazy'}" decoding="async"></div>`;
+    const rect = framing?.crop || [0, 0, framing?.width || 1, framing?.height || 1];
+    const [x, y, width, height] = rect;
+    const sourceWidth = framing?.width || width;
+    const ratio = width / height;
+    return `<div class="menu-crop" style="--menu-ratio:${ratio};--menu-image-width:${sourceWidth / width * 100}%;--menu-image-left:${-x / width * 100}%;--menu-image-top:${-y / height * 100}%"><img src="${esc(src)}" alt="${esc(alt)}" loading="${eager ? 'eager' : 'lazy'}" decoding="async"></div>`;
+  }
   const isFiltered = () => filters.area !== 'all' || filters.floor !== 'all' || filters.category !== 'all' || filters.q !== '';
 
   function getHash() {
@@ -80,7 +90,7 @@
       const rows = matched.filter(m => m.area === a.id);
       return rows.length ? `<section class="area-group" aria-label="${a.name}商家"><div class="group-heading">${icon('pin')}<b>${a.name}</b><span>${a.location.split(' · ')[0]} · ${rows.length}家</span><span class="group-line"></span></div><div class="merchant-grid">${rows.map(card).join('')}</div></section>` : '';
     }).join('');
-    return `<div class="results-line"><h2>${title}</h2><span class="result-count" role="status" aria-live="polite">共 <b>${matched.length}</b> 家商家</span></div>${summary.length ? `<p class="filter-summary">${esc(summary.join(' · '))}</p>` : ''}${matched.length ? groups : `<div class="empty-state">${icon('search')}<h2>没有找到匹配的商家</h2><p>试试更短的关键词，或清空餐厅、楼层与品类筛选。</p><button class="primary-button" data-action="reset">清空筛选，查看全部</button></div>`}
+    return `<div class="results-line"><h2>${title}</h2><div class="results-actions"><button class="reset-button" data-action="reset" ${isFiltered() ? '' : 'hidden'}>重置筛选</button><span class="result-count" role="status" aria-live="polite">共 <b>${matched.length}</b> 家商家</span></div></div>${summary.length ? `<p class="filter-summary">${esc(summary.join(' · '))}</p>` : ''}${matched.length ? groups : `<div class="empty-state">${icon('search')}<h2>没有找到匹配的商家</h2><p>试试更短的关键词，或清空餐厅、楼层与品类筛选。</p><button class="primary-button" data-action="reset">清空筛选，查看全部</button></div>`}
       <p class="pending-note">${icon('info')}<span>资料持续补充中。金桥照片暂缺；没有依据的价格和营业时间均标注“待补充”。</span></p>`;
   }
 
@@ -90,8 +100,8 @@
     renderNav();
     app.innerHTML = `<div class="page-heading"><div><h1>校园餐饮</h1><p>找一家合口味的，也认一认去它的路。</p></div><div class="collection-note"><strong>${merchants.length}家校园商家</strong><br>虹桥学生中心 · 金桥餐厅</div></div>
       <form class="search-form" role="search" id="search-form">${icon('search')}<input type="search" id="search" name="q" aria-label="搜索商家、菜品或品类" placeholder="搜商家、菜品或品类" maxlength="80" value="${esc(filters.q)}" autocomplete="off" enterkeyhint="search"><button class="icon-button" id="clear-search" type="button" aria-label="清空搜索" ${filters.q ? '' : 'hidden'}>${icon('close')}</button><span class="search-shortcut" aria-hidden="true">/</span></form>
-      <div class="mobile-areas" aria-label="选择餐厅">${areas.map(a => `<button data-area="${a.id}" aria-pressed="${filters.area === a.id}">${a.short}<span>${count(a.id)}</span></button>`).join('')}</div>
-      <div class="filter-row"><span class="filter-label">筛选</span><label class="select-wrap"><span>楼层</span><select id="floor-select" aria-label="按楼层筛选"><option value="all">全部楼层</option>${Object.entries(floorNames).map(([id, name]) => `<option value="${id}" ${filters.floor === id ? 'selected' : ''}>${name}</option>`).join('')}</select></label><label class="select-wrap"><span>品类</span><select id="category-select" aria-label="按餐饮品类筛选"><option value="all">全部品类</option>${categories.map(c => `<option ${filters.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label><button class="reset-button" data-action="reset" ${isFiltered() ? '' : 'hidden'}>重置筛选</button></div><div id="results">${resultMarkup()}</div>`;
+      <section class="browse-controls" aria-label="商家筛选"><div class="mobile-areas" aria-label="选择餐厅">${areas.map(a => `<button data-area="${a.id}" aria-pressed="${filters.area === a.id}"><span class="area-name">${a.short}</span><span class="area-number">${count(a.id)}</span></button>`).join('')}</div>
+      <div class="filter-row"><label class="select-wrap"><span>楼层</span><select id="floor-select" aria-label="按楼层筛选"><option value="all">全部楼层</option>${Object.entries(floorNames).map(([id, name]) => `<option value="${id}" ${filters.floor === id ? 'selected' : ''}>${name}</option>`).join('')}</select></label><label class="select-wrap"><span>餐饮品类</span><select id="category-select" aria-label="按餐饮品类筛选"><option value="all">全部品类</option>${categories.map(c => `<option ${filters.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div></section><div id="results">${resultMarkup()}</div>`;
     if (filters.area === 'jinqiao') {
       const option = app.querySelector('#floor-select option[value="B1"]');
       if (option) option.remove();
@@ -132,7 +142,7 @@
     app.innerHTML = `<div class="detail-tools"><button class="text-button back-button" data-action="back">${icon('back')}返回商家列表</button><button class="text-button" data-action="share">${icon('share')}分享商家</button></div>
       <div class="detail-top">${image(m, 'detail-cover', true)}<div class="detail-top-info"><h1>${esc(m.name)}</h1><div class="detail-tags"><span>${esc(m.areaName)}</span><span>${floorNames[m.floor]}</span><span class="category">${esc(m.category)}</span></div><p class="detail-specialty">${m.specialties.length ? '主营：' + esc(m.specialties.join('、')) : '主营信息待补充'}</p></div></div>
       <div class="detail-columns"><div><section class="detail-section"><div class="section-header"><h2>菜品与价格</h2><span>${m.dishes.length ? '已录入部分菜单' : '菜价待补充'}</span></div><table class="menu-table"><thead><tr><th scope="col">菜品 / 规格</th><th scope="col" class="price-col">价格</th></tr></thead><tbody>${dishes.map(d => `<tr><td>${esc(d.name)}</td><td class="price-col ${typeof d.price === 'number' ? '' : 'pending-value'}">${typeof d.price === 'number' ? `¥${money(d.price)}<span class="price-unit"> / ${esc(d.unit || '份')}</span>` : '待补充'}</td></tr>`).join('')}</tbody></table><p class="menu-caption">${m.dishes.length ? '价格及规格按已有菜单实拍整理，仅代表已录入菜品，不作为人均消费。完整供应与最新价格以门店为准。' : '先展示已有主营信息，具体菜品、规格与价格将在取得依据后补充。'}</p></section>
-      <section class="detail-section"><div class="section-header"><h2>菜单实拍</h2><span>${m.menuImages.length ? '点击查看大图' : '照片待补充'}</span></div>${m.menuImages.length ? `<div class="menu-gallery">${m.menuImages.map((src, i) => `<button class="menu-thumb" data-photo="${i}" aria-label="放大${esc(m.name)}菜单照片${i + 1}"><img src="${esc(src)}" alt="${esc(m.name)}菜单实拍${i + 1}" loading="lazy" decoding="async"><span>菜单 ${String(i + 1).padStart(2, '0')}${icon('photo')}</span></button>`).join('')}</div>` : '<p class="menu-missing">菜单照片待补充。现有商家文字资料可正常查看。</p>'}</section></div>
+      <section class="detail-section"><div class="section-header"><h2>菜单实拍</h2><span>${m.menuImages.length ? '点击查看大图' : '照片待补充'}</span></div>${m.menuImages.length ? `<div class="menu-gallery" data-count="${m.menuImages.length}">${m.menuImages.map((src, i) => `<button class="menu-thumb" data-photo="${i}" aria-label="放大${esc(m.name)}菜单照片${i + 1}"><div class="menu-preview">${menuImage(src, `${m.name}菜单实拍${i + 1}`)}</div><span>菜单 ${i + 1}${icon('photo')}</span></button>`).join('')}</div>` : '<p class="menu-missing">菜单照片待补充。现有商家文字资料可正常查看。</p>'}</section></div>
       <aside class="info-panel" aria-label="商家位置与营业时间"><h2>到店信息</h2><div class="info-block location-block"><div class="info-label">${icon('pin')}商家位置</div><div class="info-value"><span class="floor-chip">${floorNames[m.floor]}</span>${esc(m.areaName)}</div><p class="info-sub">${esc(areas.find(a => a.id === m.area).location)}</p><p class="info-value" style="margin-top:10px">${esc(m.location)}</p>${dataNotes.filter(n => /位置|第二|核实/.test(n)).map(n => `<p class="location-note">${esc(n)}</p>`).join('')}<div class="floor-guide">${(m.area === 'hongqiao' ? ['B1', '1F', '2F'] : ['1F', '2F']).map(f => `<span class="${f === m.floor ? 'current' : ''}">${floorNames[f]}</span>`).join('')}</div></div><div class="info-block"><div class="info-label">${icon('clock')}营业时间</div><p class="info-value">${m.hours ? esc(m.hours) : '待补充'}</p><p class="info-sub">${m.hours ? '营业安排以门店为准' : '暂无可靠时间信息'}</p></div><div class="info-block"><div class="info-label">${icon('shop')}餐饮品类</div><p class="info-value">${esc(m.category)}</p></div></aside></div>
       ${dataNotes.filter(n => !/位置|第二|核实/.test(n)).map(n => `<p class="pending-note">${icon('info')}<span>${esc(n)}</span></p>`).join('')}<p class="detail-bottom">资料整理于2026年10月27日。未确认的信息保留“待补充”，实际菜品、价格与营业安排以门店为准。</p>`;
     window.scrollTo(0, 0);
@@ -181,8 +191,7 @@
     if (!currentMerchant || !currentMerchant.menuImages.length) return;
     photoIndex = i;
     const src = currentMerchant.menuImages[i];
-    document.querySelector('#large-photo').src = src;
-    document.querySelector('#large-photo').alt = `${currentMerchant.name}菜单实拍，第${i + 1}张`;
+    document.querySelector('#large-photo-frame').innerHTML = menuImage(src, `${currentMerchant.name}菜单实拍，第${i + 1}张`, true);
     document.querySelector('#photo-caption').textContent = `${currentMerchant.name} · 菜单 ${i + 1} / ${currentMerchant.menuImages.length}`;
     document.querySelector('#original-photo').href = src;
     document.querySelector('#prev-photo').disabled = i === 0;

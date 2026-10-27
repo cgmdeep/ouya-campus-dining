@@ -7,9 +7,9 @@
   <meta name="description" content="欧亚校园餐饮指南：查找虹桥学生中心与金桥餐厅的商家、菜品、价格、营业时间和楼层位置。无需安装，打开即查。">
   <title>欧亚食光 · 校园餐饮指南</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
-  <script src="data.js" defer></script>
-  <script src="app.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=1a30ffacc7a8">
+  <script src="data.js?v=977aec3cb427" defer></script>
+  <script src="app.js?v=ab27772d48da" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到商家内容</a>
@@ -49,7 +49,7 @@
       <footer class="site-footer"><span>欧亚食光 · 校园餐饮指南</span><button class="text-button" data-action="about">资料与使用说明</button></footer>
     </div>
   </div>
-  <dialog id="photo-dialog" class="photo-dialog" aria-label="菜单照片大图"><div class="photo-toolbar"><span id="photo-caption"></span><button class="icon-button" data-action="close-photo" aria-label="关闭菜单照片"><svg class="icon"><use href="#i-close"></use></svg></button></div><div class="photo-stage"><img id="large-photo" alt=""></div><div class="photo-bottom"><button class="outline-button" id="prev-photo">上一张</button><a id="original-photo" target="_blank" rel="noopener">打开原图放大</a><button class="outline-button" id="next-photo">下一张</button></div></dialog>
+  <dialog id="photo-dialog" class="photo-dialog" aria-label="菜单照片大图"><div class="photo-toolbar"><span id="photo-caption"></span><button class="icon-button" data-action="close-photo" aria-label="关闭菜单照片"><svg class="icon"><use href="#i-close"></use></svg></button></div><div class="photo-stage" id="large-photo-frame"></div><div class="photo-bottom"><button class="outline-button" id="prev-photo">上一张</button><a id="original-photo" target="_blank" rel="noopener">查看完整原图</a><button class="outline-button" id="next-photo">下一张</button></div></dialog>
   <dialog id="about-dialog" class="about-dialog" aria-labelledby="about-title"><div class="about-heading"><h2 id="about-title">关于这份指南</h2><button class="icon-button" data-action="close-about" aria-label="关闭使用说明"><svg class="icon"><use href="#i-close"></use></svg></button></div><p>收录虹桥学生中心与金桥餐厅的商家资料，方便在校园里找吃的。</p><ul><li>搜索支持商家名、已收录菜品及主营品类，也可组合筛选餐厅、楼层与品类。</li><li>价格来自已有菜单实拍，只代表已录入的菜品与规格。价格和营业时间没有依据时均标注“待补充”。</li><li>金桥的照片暂未收齐，已有文字资料可以正常查询。位置存在冲突的商家会注明待核实。</li><li>资料为静态整理，最后整理日期为2026年10月27日。实际供应、价格和营业安排以门店为准。</li></ul><p class="about-footnote">打开网址即可浏览，无需登录或安装。此网页不使用扣子，也不接入AI模型。</p><button class="primary-button" data-action="close-about">继续查找</button></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
