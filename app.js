@@ -149,14 +149,23 @@
       <p class="pending-note">${icon('info')}<span>资料持续补充中。${merchants.filter(m => m.area === 'jinqiao' && !m.image).length ? `金桥仍有${merchants.filter(m => m.area === 'jinqiao' && !m.image).length}家照片待补充；` : ''}没有依据的价格和营业时间均标注“待补充”。</span></p>`;
   }
 
+  function mapPreview() {
+    const crop = { x: 450, y: 280, width: 1050, height: 740 };
+    const selected = filters.area === 'all' ? 'hongqiao' : filters.area;
+    return `<button class="map-preview" type="button" data-action="map" data-map-area="${selected}" aria-label="打开校园地图，查看餐厅位置">
+      <span class="map-preview-visual" aria-hidden="true" style="--preview-ratio:${crop.width / crop.height};--preview-image-width:${campusMap.width / crop.width * 100}%;--preview-image-left:${-crop.x / crop.width * 100}%;--preview-image-top:${-crop.y / crop.height * 100}%"><img src="${esc(campusMap.asset)}" alt="" width="${campusMap.width}" height="${campusMap.height}">${campusMap.points.map(point => `<span class="map-preview-dot ${filters.area === point.id ? 'is-selected' : ''}" style="left:${(point.center.x - crop.x) / crop.width * 100}%;top:${(point.center.y - crop.y) / crop.height * 100}%"></span>`).join('')}</span>
+      <span class="map-preview-copy"><strong>校园地图</strong><span>查看餐厅位置</span></span>${icon('arrow')}
+    </button>`;
+  }
+
   function renderList(restore = false) {
     currentMerchant = null;
     document.title = '欧亚食光 · 校园餐饮指南';
     renderNav();
     app.innerHTML = `<div class="page-heading"><div><h1>校园餐饮</h1><p>找一家合口味的，也认一认去它的路。</p></div><div class="collection-note"><strong>${merchants.length}家校园商家</strong><br>虹桥学生中心 · 金桥餐厅</div></div>
       <form class="search-form" role="search" id="search-form">${icon('search')}<input type="search" id="search" name="q" aria-label="搜索商家、菜品或品类" placeholder="搜商家、菜品或品类" maxlength="80" value="${esc(filters.q)}" autocomplete="off" enterkeyhint="search"><button class="icon-button" id="clear-search" type="button" aria-label="清空搜索" ${filters.q ? '' : 'hidden'}>${icon('close')}</button><span class="search-shortcut" aria-hidden="true">/</span></form>
-      <section class="browse-controls" aria-label="商家筛选"><div class="mobile-areas" aria-label="选择餐厅">${areas.map(a => `<button data-area="${a.id}" aria-pressed="${filters.area === a.id}"><span class="area-name">${a.short}</span><span class="area-number">${count(a.id)}</span></button>`).join('')}</div>
-      <div class="filter-row"><label class="select-wrap"><span>楼层</span><select id="floor-select" aria-label="按楼层筛选"><option value="all">全部楼层</option>${Object.entries(floorNames).map(([id, name]) => `<option value="${id}" ${filters.floor === id ? 'selected' : ''}>${name}</option>`).join('')}</select></label><label class="select-wrap"><span>餐饮品类</span><select id="category-select" aria-label="按餐饮品类筛选"><option value="all">全部品类</option>${categories.map(c => `<option ${filters.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div></section><div id="results">${resultMarkup()}</div>`;
+      <section class="browse-controls" aria-label="筛选商家与查看地图"><div class="browse-filters"><div class="mobile-areas" aria-label="选择餐厅">${areas.map(a => `<button data-area="${a.id}" aria-pressed="${filters.area === a.id}"><span class="area-name">${a.short}</span><span class="area-number">${count(a.id)}</span></button>`).join('')}</div>
+      <div class="filter-row"><label class="select-wrap"><span>楼层</span><select id="floor-select" aria-label="按楼层筛选"><option value="all">全部楼层</option>${Object.entries(floorNames).map(([id, name]) => `<option value="${id}" ${filters.floor === id ? 'selected' : ''}>${name}</option>`).join('')}</select></label><label class="select-wrap"><span>餐饮品类</span><select id="category-select" aria-label="按餐饮品类筛选"><option value="all">全部品类</option>${categories.map(c => `<option ${filters.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div></div>${mapPreview()}</section><div id="results">${resultMarkup()}</div>`;
     if (filters.area === 'jinqiao') {
       const option = app.querySelector('#floor-select option[value="B1"]');
       if (option) option.remove();
@@ -318,6 +327,12 @@
     if (photo) showPhoto(Number(photo.dataset.photo));
     const action = event.target.closest('[data-action]')?.dataset.action;
     if (action === 'map') {
+      if (previousView === 'list') {
+        clearTimeout(searchTimer);
+        lastListHash = getHash();
+        history.replaceState(null, '', lastListHash);
+        listScroll = window.scrollY;
+      }
       if (!location.hash.startsWith('#/map')) { lastMapReturnHash = location.hash || '#/'; mapFromPage = true; mapDetailFromList = detailFromList; }
       const selected = event.target.closest('[data-map-area]')?.dataset.mapArea || (previousView === 'map' ? mapArea : filters.area !== 'all' ? filters.area : 'hongqiao');
       location.hash = `#/map?area=${selected}`;
